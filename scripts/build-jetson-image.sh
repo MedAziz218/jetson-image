@@ -4,7 +4,7 @@
 
 set -e
 
-supported_boards=("jetson-nano" "jetson-nano-2gb" "jetson-orin-nano" "jetson-agx-xavier" "jetson-xavier-nx" "jetson-agx-orin")
+supported_boards=("jetson-nano" "jetson-nano-2gb" "jetson-orin-nano" "jetson-orin-nano-super" "jetson-agx-xavier" "jetson-xavier-nx" "jetson-agx-orin")
 
 function usage() {
     echo "Usage: $0 -b <board> -r <revision> -d <device> -l <l4t>"
@@ -80,7 +80,7 @@ case $board in
     fi
     ;;
 
-"jetson-orin-nano" | "jetson-xavier-nx" | "jetson-agx-xavier" | "jetson-agx-orin")
+"jetson-orin-nano"| "jetson-orin-nano-super" | "jetson-xavier-nx" | "jetson-agx-xavier" | "jetson-agx-orin")
 
     if [ "$device" = "" ]; then
         printf "\e[31mError: device argument required.\n\e[0m"

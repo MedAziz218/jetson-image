@@ -1,4 +1,6 @@
 *.swp
 *.vagrant/
 jetson.img*
-rootfs/
+rootfs*/
+base*/
+.podman_apt_cache
