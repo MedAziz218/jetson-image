@@ -1,40 +1,47 @@
 #!/usr/bin/env bash
+set -e
 
-# Check Ubuntu version ($1)
-if [ "$1" != "24.04" ] && [ "$1" != "22.04" ] && [ "$1" != "20.04" ]; then
-  echo "Error: Unknown version of Ubuntu. Supported: 20.04, 22.04, 24.04"
+# 1. Validate inputs
+if [[ ! "$1" =~ ^(20.04|22.04|24.04)$ ]]; then
+  echo "Error: Supported versions: 20.04, 22.04, 24.04"
   exit 1
 fi
 
-# Check Stage ID ($2) is not empty
 if [ -z "$2" ]; then
-  echo "Error: Stage ID (second argument) cannot be empty."
+  echo "Error: You must specify the source stage (e.g., 'base' or 'ros2')"
   exit 1
 fi
 
 VERSION=$1
-STAGE=$2
-IMAGE_NAME="jetson-rootfs-$VERSION:$STAGE"
+SOURCE_STAGE=$2
+SOURCE_IMAGE="jetson-rootfs-$VERSION:$SOURCE_STAGE"
+TARGET_IMAGE="jetson-rootfs-$VERSION:extract"
+TARGET_DIR="rootfs-$VERSION-$SOURCE_STAGE"
+TEMP_SAVE="temp-save-$VERSION"
+FILE_VER=${VERSION//./_}
 
-if ! podman image exists "$IMAGE_NAME" && ! podman image exists "localhost/$IMAGE_NAME"; then
-  echo "Error: Image '$IMAGE_NAME' not found locally."
-  exit 1
-fi
 
-# 1. Save image to directory format
-podman save --format docker-dir -o "base-$VERSION-$STAGE" "$IMAGE_NAME"
+# 2. Build the 'extract' stage using the source stage as an argument
+echo "Building extraction layer from $SOURCE_IMAGE..."
+podman build \
+    --squash-all \
+    --arch=arm64 \
+    --build-arg SOURCE_IMAGE="$SOURCE_IMAGE" \
+    -f "Containerfile.rootfs.${FILE_VER}.extract" \
+    -t "$TARGET_IMAGE" .
 
-# 2. Create target directory
-mkdir -p "rootfs-$VERSION-$STAGE"
+# 3. Save and Extract
+echo "Flattening image layers..."
+rm -rf "$TEMP_SAVE" "$TARGET_DIR"
+mkdir -p "$TARGET_DIR"
+podman save --format docker-dir -o "$TEMP_SAVE" "$TARGET_IMAGE"
 
-# 3. Extract layers
-# Note: Using jq to get layers and xargs/tar to extract them
-for layer in $(jq -r '.layers[].digest' "base-$VERSION-$STAGE/manifest.json" | awk -F ':' '{print $2}'); do
-  tar xf "base-$VERSION-$STAGE/$layer" --directory="rootfs-$VERSION-$STAGE"
+# Using jq to extract layers in order
+for layer in $(jq -r '.layers[].digest' "$TEMP_SAVE/manifest.json" | awk -F ':' '{print $2}'); do
+    echo "Unpacking layer: $layer"
+    tar xf "$TEMP_SAVE/$layer" --directory="$TARGET_DIR"
 done
 
 # 4. Cleanup
-rm -rf "rootfs-$VERSION-$STAGE/.bash_history"
-rm -rf "base-$VERSION-$STAGE"
-
-echo "Build complete: rootfs-$VERSION-$STAGE directory is ready."
+rm -rf "$TEMP_SAVE"
+echo "Success! Final rootfs is in: $TARGET_DIR"

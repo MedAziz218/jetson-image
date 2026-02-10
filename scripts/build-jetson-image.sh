@@ -26,9 +26,14 @@ function usage() {
     exit 1
 }
 
-while getopts b:r:d:l:h opts; do
+while getopts b:r:d:l:v:s:h opts; do
     case "$opts" in
-
+    v)
+        version=${OPTARG}
+        ;;
+    s)
+        stage=${OPTARG}
+        ;;
     b)
         board=${OPTARG}
         if [[ ! " ${supported_boards[@]} " =~ " ${board} " ]]; then
@@ -65,6 +70,11 @@ while getopts b:r:d:l:h opts; do
     *) usage ;;
     esac
 done
+# Validation: Check if version and stage are provided
+if [[ -z "$version" || -z "$stage" ]]; then
+    printf "\e[31mError: version (-v) and stage (-s) arguments are required.\e[0m \n\n"
+    usage
+fi
 
 if [ "$board" = "" ]; then
     printf "\e[31mError: board argument in required.\e[0m \n\n"
@@ -143,11 +153,15 @@ fi
 
 L4T_PACKAGES="${L4T_PACKAGES# }"
 
+if [ -z "$NJOBS" ]; then 
+    NJOBS=8 
+fi
 sudo -E XDG_RUNTIME_DIR= DBUS_SESSION_BUS_ADDRESS= podman build \
     --cap-add=all \
-    --jobs=4 \
+    --jobs=$NJOBS \
     --network=host \
     --build-arg L4T_PACKAGES="$L4T_PACKAGES" \
+    --build-arg ROOTFS_SOURCE="rootfs-${version}-${stage}"/ \
     -f Containerfile.image.l4t"$l4t" \
     -t jetson-build-image-l4t"$l4t"
 

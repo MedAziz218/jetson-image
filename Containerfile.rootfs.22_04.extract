@@ -1,0 +1,14 @@
+ARG SOURCE_IMAGE
+
+FROM ${SOURCE_IMAGE}
+
+# Clean the filesystem
+RUN apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* \
+           /var/cache/apt/archives/*.deb \
+           /tmp/* \
+           /var/tmp/* \
+           /var/log/*.log \
+           /var/log/apt/*
+

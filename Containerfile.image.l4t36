@@ -29,13 +29,15 @@ RUN apt update && \
         lz4 \
         cpio \
         xmlstarlet
-
+        
 # Extract the BSP
 RUN mkdir /build && \
-    wget -qO- $BSP | tar -jxpf - -C /build
-
+    SIZE=$(wget --spider --server-response $BSP 2>&1 | grep "Content-Length" | tail -1 | awk '{print $2}') && \
+    echo "Download size: $((SIZE / 1024 / 1024)) MB" && \
+    wget -q --show-progress --progress=bar:force:noscroll -O- $BSP | tar -jxpf - -C /build
 # Copy the ubuntu rootfs
-COPY rootfs/ /build/Linux_for_Tegra/rootfs/
+ARG ROOTFS_SOURCE=rootfs/
+COPY ${ROOTFS_SOURCE} /build/Linux_for_Tegra/rootfs/
 
 # Sudo permissions
 RUN chmod 4755 /build/Linux_for_Tegra/rootfs/usr/bin/sudo
